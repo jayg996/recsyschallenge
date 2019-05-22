@@ -25,21 +25,21 @@ class Preprocess():
                 data_name = 'toy_test'
             else:
                 data_name = 'test'
-        preprocess_save_path = os.path.join(self.config.data_dir, data_name + '.pt')
+        preprocess_save_path = os.path.join(self.config.root_path, 'data', data_name + '.pt')
         if os.path.exists(preprocess_save_path):
             self.data_infos = torch.load(preprocess_save_path)
         else:
-            self.data_df = pd.read_csv(os.path.join(self.config.data_dir, data_name + '.csv'))
+            self.data_df = pd.read_csv(os.path.join(self.config.root_path, 'data', data_name + '.csv'))
             self.data_infos = self.preprocess_sessions(self.data_df, train=train_mode)
             torch.save(self.data_infos, preprocess_save_path)
 
-        meta_path = os.path.join(self.config.data_dir, 'meta.pt')
+        meta_path = os.path.join(self.config.root_path, 'data', 'meta.pt')
         if os.path.exists(meta_path):
             meta = torch.load(meta_path)
             self.meta_idx = meta['idx']
             self.item_vector_dict = meta['item_vector']
         else:
-            self.meta_data_df = pd.read_csv(os.path.join(self.config.data_dir, 'item_metadata.csv'))
+            self.meta_data_df = pd.read_csv(os.path.join(self.config.root_path, 'data', 'item_metadata.csv'))
             self.meta_idx = self.make_meta_idx()
             self.item_vector_dict = self.make_item_vector_dict()
             meta = dict()

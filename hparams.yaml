@@ -1,1 +1,17 @@
-data_dir: '/home/jayg996/recsyschallenge/data'
+mode:
+  train: True
+  toy: False
+
+experiment:
+  learning_rate : 0.005
+  weight_decay : 0.0
+  max_epoch : 100
+  batch_size : 128
+  save_step : 20
+  data_ratio : 0.8
+
+model:
+  hidden_dim : 16
+
+root_path : '/home/jayg996/recsyschallenge'
+

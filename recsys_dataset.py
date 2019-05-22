@@ -8,7 +8,7 @@ import math
 from sortedcontainers import SortedList
 
 class RecSysDataset(Dataset):
-    def __init__(self, config, train_mode=True, toy_mode=True):
+    def __init__(self, config, train_mode=True, toy_mode=True, valid_data=False):
         super(RecSysDataset, self).__init__()
 
         self.config = config
@@ -18,6 +18,11 @@ class RecSysDataset(Dataset):
         self.item_vector_dict = self.preprocessor.item_vector_dict
         self.data_infos = self.preprocessor.data_infos
         self.session_keys = SortedList(self.data_infos[0].keys())
+        if train_mode:
+            if valid_data:
+                self.session_keys = self.session_keys[int(config.experiment['data_ratio'] * len(self.session_keys)):]
+            else:
+                self.session_keys = self.session_keys[:int(config.experiment['data_ratio'] * len(self.session_keys))]
 
     def __len__(self):
         return len(self.session_keys)
@@ -36,8 +41,12 @@ class RecSysDataset(Dataset):
         instance['impressions'] = self.data_infos[2][instance_key]
         instance['item_vectors'] = np.zeros((25, self.item_vector_dim))
         for j in range(len(instance['impressions'])):
-            instance['item_vectors'][j, :] = np.array(self.item_vector_dict[int(instance['impressions'][j])])
-
+            try:
+                instance['item_vectors'][j, :] = np.array(self.item_vector_dict[int(instance['impressions'][j])])
+            except:
+                ## todo : KeyError confirm
+                # print('KeyError : ',int(instance['impressions'][j]))
+                instance['item_vectors'][j, :] = np.zeros((self.item_vector_dim))
         return instance
 
 def _collate_fn(batch):
@@ -69,7 +78,7 @@ class RecSysDataLoader(DataLoader):
 if __name__ == "__main__":
     from hparams import HParams
     config = HParams.load("hparams.yaml")
-    dataset = RecSysDataset(config, train_mode=True, toy_mode=False)
+    dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'])
     print(len(dataset))
 
     dataloader = RecSysDataLoader(dataset, batch_size=2, num_workers=1, shuffle=True, drop_last=False)
