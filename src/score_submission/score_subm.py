@@ -2,7 +2,8 @@ from pathlib import Path
 
 import click
 
-from . import functions as f
+# from . import functions as f
+import src.score_submission.functions as f
 
 current_directory = Path(__file__).absolute().parent
 default_data_directory = current_directory.joinpath('..', '..', 'data')

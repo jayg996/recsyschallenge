@@ -54,3 +54,4 @@ recsys-challenge-2019-algorithm.iml
 
 # Data
 *.csv
+*.pt

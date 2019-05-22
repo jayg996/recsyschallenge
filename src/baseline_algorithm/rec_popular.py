@@ -3,14 +3,15 @@ from pathlib import Path
 import click
 import pandas as pd
 
-from . import functions as f
+# from . import functions as f
+import src.baseline_algorithm.functions as f
 
 current_directory = Path(__file__).absolute().parent
 default_data_directory = current_directory.joinpath('..', '..', 'data')
 
 
 @click.command()
-@click.option('--data-path', default=None, help='Directory for the CSV files')
+@click.option('--data-path', default='/home/jayg996/recsyschallenge/data', help='Directory for the CSV files')
 def main(data_path):
 
     # calculate path to files
