@@ -87,19 +87,25 @@ class Preprocess():
                 if i < len(data_df):
                     user, session = list(data_df.iloc[i])[0], list(data_df.iloc[i])[1]
                 else: break
+                if list(data_df.iloc[i])[3] == 1:
+                    break
             if tmp_list[4] == 'clickout item':
-                session_vector_dict[tmp_user, tmp_session] = tmp_array
-                session_time_dict[tmp_user, tmp_session] = tmp_list[2:4]
-                session_impressions_dict[tmp_user, tmp_session] = tmp_list[10].split('|')
                 if train is True:
+                    session_vector_dict[tmp_user, tmp_session] = tmp_array
+                    session_time_dict[tmp_user, tmp_session] = tmp_list[2:4]
+                    session_impressions_dict[tmp_user, tmp_session] = tmp_list[10].split('|')
                     session_label_dict[tmp_user, tmp_session] = int(tmp_list[5])
+                else:
+                    if np.isnan(float(tmp_list[5])):
+                        session_vector_dict[tmp_user, tmp_session] = tmp_array
+                        session_time_dict[tmp_user, tmp_session] = tmp_list[2:4]
+                        session_impressions_dict[tmp_user, tmp_session] = tmp_list[10].split('|')
         return session_vector_dict, session_time_dict, session_impressions_dict, session_label_dict
 
 if __name__ == "__main__":
     from hparams import HParams
     config = HParams.load("hparams.yaml")
-    proc = Preprocess(config)
-    a,b,c,d = proc.preprocess_sessions(proc.train_df)
+    proc = Preprocess(config,train_mode=config.mode['train'], toy_mode=config.mode['toy'])
 
 
     print('hi')
