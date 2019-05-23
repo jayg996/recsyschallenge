@@ -55,7 +55,7 @@ class FM(nn.Module):
             for i in range(len(label_idx)):
                 positive_scores[i] = scores[i, label_idx[i]]
             subtracts = positive_scores.expand(scores.size(0), self.max_len) - scores
-            loss = - torch.mean(torch.log(self.sigmoid(subtracts)), 1)
+            loss = - torch.mean(torch.log(self.sigmoid(subtracts) + 1e-6), 1)
         else:
             positive_scores = torch.zeros(scores.size(0), 1).to(torch.device("cuda" if use_cuda else "cpu"))
             for i in range(len(label_idx)):
@@ -64,7 +64,7 @@ class FM(nn.Module):
             loss = torch.zeros(scores.size(0)).to(torch.device("cuda" if use_cuda else "cpu"))
             for i in range(len(item_idx)):
                 for j in range(len(item_idx[i])):
-                    loss[i] += - torch.log(self.sigmoid(subtracts[i,j]))
+                    loss[i] += - torch.log(self.sigmoid(subtracts[i,j]) + 1e-6)
                 loss[i] /= len(item_idx[i])
         return loss
 
