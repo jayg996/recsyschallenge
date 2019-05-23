@@ -29,13 +29,15 @@ if not config.mode['train']:
     args.loss_type = 'test'
 logger.info("==== Loss Type : %s " % args.loss_type)
 
-
-# train and valid data load
-train_dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'], valid_data=False)
-valid_dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'], valid_data=True)
-train_dataloader = RecSysDataLoader(dataset=train_dataset, batch_size=config.experiment['batch_size'], drop_last=False, shuffle=True)
-valid_dataloader = RecSysDataLoader(dataset=valid_dataset, batch_size=config.experiment['batch_size'], drop_last=False)
-
+# data load
+if args.loss_type != 'test':
+    train_dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'],valid_data=False)
+    valid_dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'], valid_data=True)
+    train_dataloader = RecSysDataLoader(dataset=train_dataset, batch_size=config.experiment['batch_size'],drop_last=False, shuffle=True)
+    valid_dataloader = RecSysDataLoader(dataset=valid_dataset, batch_size=config.experiment['batch_size'],drop_last=False)
+else:
+    test_dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'],valid_data=False)
+    test_dataloader = RecSysDataLoader(dataset=test_dataset, batch_size=config.experiment['batch_size'],drop_last=False)
 # result and model save paths
 restore_epoch = args.restore_epoch
 experiment_num = str(args.index)
@@ -46,7 +48,10 @@ if not os.path.exists(os.path.join(config.root_path, 'model')):
     os.makedirs(os.path.join(config.root_path, 'result'))
 
 # model load
-item_dim = train_dataset.item_vector_dim
+if args.loss_type != 'test':
+    item_dim = train_dataset.item_vector_dim
+else:
+    item_dim = test_dataset.item_vector_dim
 sess_dim = 10
 model = FM(config.model, item_dim, sess_dim).to(device)
 optimizer = optim.Adagrad(model.parameters(), lr=config.experiment['learning_rate'], weight_decay=config.experiment['weight_decay'])
@@ -114,7 +119,34 @@ if args.loss_type != 'test':
                 state_dict = {'model': model.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
                 torch.save(state_dict, model_save_path)
 # for test
-## todo : implementation
 else:
-    raise NotImplementedError
+    # Test
+    df_out = dict()
+    column_names = ['user_id', 'session_id', 'timestamp', 'step', 'item_recommendations']
+    for c in column_names:
+        df_out[c] = list()
+    with torch.no_grad():
+        model.eval()
+        for i, data in enumerate(test_dataloader):
+            keys, session_vectors, time_infos, labels, item_idx, item_vectors = data
+            session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
+
+            scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
+            sorted, indices = torch.sort(scores, 1, descending=True)
+            for k in range(len(keys)):
+                df_out[column_names[0]].append(keys[k][0])
+                df_out[column_names[1]].append(keys[k][1])
+                df_out[column_names[2]].append(time_infos[k][0])
+                df_out[column_names[3]].append(time_infos[k][1])
+                tmp_str = ''
+                for j in range(len(indices[k])):
+                    try:
+                        tmp_str += item_idx[k][indices[k][j].item()]
+                        tmp_str += ' '
+                    except:
+                        continue
+                df_out[column_names[4]].append(tmp_str)
+
+    df_out = pd.DataFrame.from_dict(df_out)
+    df_out.to_csv(os.path.join(config.root_path, 'result', (ckpt_file_name % restore_epoch).replace('pth.tar','csv')), index=False)
 

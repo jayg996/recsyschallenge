@@ -6,7 +6,9 @@ experiment:
   learning_rate : 0.005
   weight_decay : 0.0
   max_epoch : 100
-  batch_size : 128
+  batch_size : 256
+  # for training time
+#  batch_size : 65536
   save_step : 20
   data_ratio : 0.8
 

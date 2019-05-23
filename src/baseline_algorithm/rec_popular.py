@@ -16,9 +16,9 @@ def main(data_path):
 
     # calculate path to files
     data_directory = Path(data_path) if data_path else default_data_directory
-    train_csv = data_directory.joinpath('train.csv')
-    test_csv = data_directory.joinpath('test.csv')
-    subm_csv = data_directory.joinpath('submission_popular.csv')
+    train_csv = data_directory.joinpath('toy_train.csv')
+    test_csv = data_directory.joinpath('toy_test.csv')
+    subm_csv = data_directory.joinpath('toy_submission_popular.csv')
 
     print(f"Reading {train_csv} ...")
     df_train = pd.read_csv(train_csv)

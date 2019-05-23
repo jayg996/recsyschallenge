@@ -46,46 +46,20 @@ class FM(nn.Module):
         return label_idx
 
     def BPR_loss(self, scores, label_idx, item_idx):
-        normal = True
-        for i in item_idx:
-            if len(i) != self.max_len:
-                normal = False
-        if normal:
-            positive_scores = torch.zeros(scores.size(0), 1).to(torch.device("cuda" if use_cuda else "cpu"))
-            for i in range(len(label_idx)):
-                positive_scores[i] = scores[i, label_idx[i]]
-            subtracts = positive_scores.expand(scores.size(0), self.max_len) - scores
-            loss = - torch.mean(torch.log(self.sigmoid(subtracts) + 1e-6), 1)
-        else:
-            positive_scores = torch.zeros(scores.size(0), 1).to(torch.device("cuda" if use_cuda else "cpu"))
-            for i in range(len(label_idx)):
-                positive_scores[i] = scores[i, label_idx[i]]
-            subtracts = positive_scores.expand(scores.size(0), self.max_len) - scores
-            loss = torch.zeros(scores.size(0)).to(torch.device("cuda" if use_cuda else "cpu"))
-            for i in range(len(item_idx)):
-                for j in range(len(item_idx[i])):
-                    loss[i] += - torch.log(self.sigmoid(subtracts[i,j]) + 1e-6)
-                loss[i] /= len(item_idx[i])
+        positive_scores = torch.zeros(scores.size(0), 1).to(torch.device("cuda" if use_cuda else "cpu"))
+        for i in range(len(label_idx)):
+            positive_scores[i] = scores[i, label_idx[i]]
+        subtracts = positive_scores.expand(scores.size(0), self.max_len) - scores
+        loss = - torch.mean(torch.log(self.sigmoid(subtracts) + 1e-6), 1)
         return loss
 
     def TOP1_loss(self, scores, label_idx, item_idx):
-        normal = True
-        for i in item_idx:
-            if len(i) != self.max_len:
-                normal = False
         positive_scores = torch.zeros(scores.size(0), 1).to(torch.device("cuda" if use_cuda else "cpu"))
         for i in range(len(label_idx)):
             positive_scores[i] = scores[i, label_idx[i]]
         subtracts = self.sigmoid(scores - positive_scores.expand(scores.size(0), self.max_len))
         squares = self.sigmoid(scores**2)
-        if normal:
-            loss = torch.mean(subtracts + squares, 1)
-        else:
-            loss = torch.zeros(scores.size(0)).to(torch.device("cuda" if use_cuda else "cpu"))
-            for i in range(len(item_idx)):
-                for j in range(len(item_idx[i])):
-                    loss[i] += subtracts[i,j] + squares[i,j]
-                loss[i] /= len(item_idx[i])
+        loss = torch.mean(subtracts + squares, 1)
         return loss
 
     def forward(self, sess_vectors, item_vectors, labels, item_idx, loss_type='bpr'):
