@@ -145,8 +145,9 @@ else:
                         tmp_str += ' '
                     except:
                         continue
-                df_out[column_names[4]].append(tmp_str)
+                df_out[column_names[4]].append(tmp_str[:-1])
 
     df_out = pd.DataFrame.from_dict(df_out)
     df_out.to_csv(os.path.join(config.root_path, 'result', (ckpt_file_name % restore_epoch).replace('pth.tar','csv')), index=False)
+    logger.info("==== Test Finish")
 
