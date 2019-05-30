@@ -25,13 +25,6 @@ class Preprocess():
                 data_name = 'toy_test'
             else:
                 data_name = 'test'
-        preprocess_save_path = os.path.join(self.config.root_path, 'data', data_name + '.pt')
-        if os.path.exists(preprocess_save_path):
-            self.data_infos = torch.load(preprocess_save_path)
-        else:
-            self.data_df = pd.read_csv(os.path.join(self.config.root_path, 'data', data_name + '.csv'))
-            self.data_infos = self.preprocess_sessions(self.data_df, train=train_mode)
-            torch.save(self.data_infos, preprocess_save_path)
 
         meta_path = os.path.join(self.config.root_path, 'data', 'meta.pt')
         if os.path.exists(meta_path):
@@ -46,6 +39,14 @@ class Preprocess():
             meta['idx'] = self.meta_idx
             meta['item_vector'] = self.item_vector_dict
             torch.save(meta,meta_path)
+
+        preprocess_save_path = os.path.join(self.config.root_path, 'data', data_name + '.pt')
+        if os.path.exists(preprocess_save_path):
+            self.data_infos = torch.load(preprocess_save_path)
+        else:
+            self.data_df = pd.read_csv(os.path.join(self.config.root_path, 'data', data_name + '.csv'))
+            self.data_infos = self.preprocess_sessions(self.data_df, train=train_mode)
+            torch.save(self.data_infos, preprocess_save_path)
 
     def make_meta_idx(self):
         attributes = set()
@@ -74,43 +75,86 @@ class Preprocess():
         session_time_dict = dict()
         session_impressions_dict = dict()
         session_label_dict = dict()
+
+        session_vectors_dict = dict()
+        session_contexts_dict = dict()
+        impressions_price_dict = dict()
+        num_sort_order = 3
+
         i = 0
         while i < len(data_df):
             tmp_list = list(data_df.iloc[i])
             tmp_user, tmp_session = tmp_list[0], tmp_list[1]
             user, session = tmp_list[0], tmp_list[1]
             tmp_array = np.zeros(len(action_idx))
+
+            tmp_vectors_list = list()
+            tmp_context_list = list()
+
             while tmp_user == user and tmp_session == session:
                 tmp_list = list(data_df.iloc[i])
                 tmp_array[action_idx[tmp_list[4]]] += 1
+
+                tmp = np.zeros(len(action_idx))
+                tmp[action_idx[tmp_list[4]]] += 1
+
+                tmp_context = np.zeros(len(self.meta_idx) + num_sort_order)
+
+                if action_idx[tmp_list[4]] == 0:
+                    if tmp_list[5].find('rating') != -1:
+                        tmp_context[-3] = 1
+                    elif tmp_list[5].find('price') != -1:
+                        tmp_context[-2] = 1
+                    elif tmp_list[5].find('distance') != -1:
+                        tmp_context[-1] = 1
+                elif action_idx[tmp_list[4]] >= 3 and action_idx[tmp_list[4]] <=6:
+                    try:
+                        tmp_context[:len(self.meta_idx)] = self.item_vector_dict[tmp_list[5]]
+                    except:
+                        tmp_context[:len(self.meta_idx)] = np.zeros(len(self.meta_idx))
+                elif action_idx[tmp_list[4]] == 8:
+                    try:
+                        tmp_context[:len(self.meta_idx)] = self.item_vector_dict[tmp_list[5]]
+                    except:
+                        tmp_context[:len(self.meta_idx)] = np.zeros(len(self.meta_idx))
+
+                tmp_vectors_list.append(tmp)
+                tmp_context_list.append(tmp_context)
+
                 i += 1
                 if i < len(data_df):
                     user, session = list(data_df.iloc[i])[0], list(data_df.iloc[i])[1]
                 else: break
                 if list(data_df.iloc[i])[3] == 1:
                     break
+
             if tmp_list[4] == 'clickout item':
                 if train is True:
                     session_vector_dict[tmp_user, tmp_session] = tmp_array
                     session_time_dict[tmp_user, tmp_session] = tmp_list[2:4]
                     session_impressions_dict[tmp_user, tmp_session] = tmp_list[10].split('|')
                     session_label_dict[tmp_user, tmp_session] = int(tmp_list[5])
+
+                    session_vectors_dict[tmp_user, tmp_session] = np.array(tmp_vectors_list)
+                    session_contexts_dict[tmp_user, tmp_session] = np.array(tmp_context_list)
+                    impressions_price_dict[tmp_user, tmp_session] = np.array(tmp_list[11].split('|'), dtype=int)
                 else:
                     if np.isnan(float(tmp_list[5])):
                         session_vector_dict[tmp_user, tmp_session] = tmp_array
                         session_time_dict[tmp_user, tmp_session] = tmp_list[2:4]
                         session_impressions_dict[tmp_user, tmp_session] = tmp_list[10].split('|')
-        return session_vector_dict, session_time_dict, session_impressions_dict, session_label_dict
+
+                        session_vectors_dict[tmp_user, tmp_session] = tmp_vectors_list
+                        session_contexts_dict[tmp_user, tmp_session] = np.array(tmp_context_list)
+                        impressions_price_dict[tmp_user, tmp_session] = np.array(tmp_list[11].split('|'), dtype=int)
+        return session_vector_dict, session_time_dict, session_impressions_dict, session_label_dict, session_vectors_dict, session_contexts_dict, impressions_price_dict
 
 if __name__ == "__main__":
     from hparams import HParams
     config = HParams.load("hparams.yaml")
+    print('train : ', config.mode['train'])
     proc = Preprocess(config,train_mode=config.mode['train'], toy_mode=config.mode['toy'])
-
-
-    print('hi')
-    print('hi')
-    print('hi')
+    print('end')
 
 
 
