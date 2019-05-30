@@ -101,12 +101,15 @@ class Preprocess():
                 tmp_context = np.zeros(len(self.meta_idx) + num_sort_order)
 
                 if action_idx[tmp_list[4]] == 0:
-                    if tmp_list[5].find('rating') != -1:
-                        tmp_context[-3] = 1
-                    elif tmp_list[5].find('price') != -1:
-                        tmp_context[-2] = 1
-                    elif tmp_list[5].find('distance') != -1:
-                        tmp_context[-1] = 1
+                    try:
+                        if tmp_list[5].find('rating') != -1:
+                            tmp_context[-3] = 1
+                        elif tmp_list[5].find('price') != -1:
+                            tmp_context[-2] = 1
+                        elif tmp_list[5].find('distance') != -1:
+                            tmp_context[-1] = 1
+                    except:
+                        _ = 0
                 elif action_idx[tmp_list[4]] >= 3 and action_idx[tmp_list[4]] <=6:
                     try:
                         tmp_context[:len(self.meta_idx)] = self.item_vector_dict[tmp_list[5]]
