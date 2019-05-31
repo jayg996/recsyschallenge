@@ -1,4 +1,3 @@
-import math
 import pandas as pd
 import numpy as np
 import os
@@ -153,8 +152,8 @@ class Preprocess():
         return session_vector_dict, session_time_dict, session_impressions_dict, session_label_dict, session_vectors_dict, session_contexts_dict, impressions_price_dict
 
 if __name__ == "__main__":
-    from hparams import HParams
-    config = HParams.load("hparams.yaml")
+    from utils.hparams import HParams
+    config = HParams.load("utils/hparams.yaml")
     print('train : ', config.mode['train'])
     proc = Preprocess(config,train_mode=config.mode['train'], toy_mode=config.mode['toy'])
     print('end')

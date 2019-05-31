@@ -1,11 +1,8 @@
 import numpy as np
-import os
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.sampler import Sampler
-from preprocess import Preprocess
-import math
+from src.data_loader.preprocess import Preprocess
 from sortedcontainers import SortedList
 
 class RecSysDataset(Dataset):
@@ -99,8 +96,8 @@ class RecSysDataLoader(DataLoader):
         self.collate_fn = _collate_fn
 
 if __name__ == "__main__":
-    from hparams import HParams
-    config = HParams.load("hparams.yaml")
+    from utils.hparams import HParams
+    config = HParams.load("utils/hparams.yaml")
     print('train : ', config.mode['train'])
     dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'])
     print(len(dataset))

@@ -1,5 +1,5 @@
 mode:
-  train: False
+  train: True
   toy: False
 
 experiment:
@@ -10,7 +10,7 @@ experiment:
   save_step : 20
   data_ratio : 0.8
 
-model:
+fm_model:
   hidden_dim : 16
 
 root_path : '/home/jayg996/recsyschallenge'

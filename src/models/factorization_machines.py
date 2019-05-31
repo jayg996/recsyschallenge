@@ -1,4 +1,4 @@
-from hparams import HParams
+from utils.hparams import HParams
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -76,7 +76,7 @@ class FM(nn.Module):
         return scores, loss
 
 if __name__ == "__main__":
-    config = HParams.load("hparams.yaml")
+    config = HParams.load("utils/hparams.yaml")
     device = torch.device("cuda" if use_cuda else "cpu")
 
     batch_size = 4

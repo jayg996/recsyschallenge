@@ -1,10 +1,10 @@
 import os
 import torch
 from torch import optim
-from recsys_dataset import RecSysDataset, RecSysDataLoader
-from models import FM
-from hparams import HParams
-import logger
+from src.data_loader.recsys_dataset import RecSysDataset, RecSysDataLoader
+from src.models.factorization_machines import FM
+from utils.hparams import HParams
+from utils import logger
 import numpy as np
 import pandas as pd
 import argparse
@@ -22,7 +22,7 @@ parser.add_argument('--loss_type', type=str, help='bpr, top1, test', default='bp
 parser.add_argument('--restore_epoch', type=int, default=1000)
 args = parser.parse_args()
 
-config = HParams.load("hparams.yaml")
+config = HParams.load("utils/hparams.yaml")
 
 # loss type print
 if not config.mode['train']:
@@ -43,9 +43,9 @@ restore_epoch = args.restore_epoch
 experiment_num = str(args.index)
 ckpt_file_name = 'idx_'+experiment_num+'_%03d.pth.tar'
 logger.info("==== Experiment Number : %d " % args.index)
-if not os.path.exists(os.path.join(config.root_path, 'model')):
-    os.makedirs(os.path.join(config.root_path, 'model'))
-    os.makedirs(os.path.join(config.root_path, 'result'))
+if not os.path.exists(os.path.join(config.root_path, 'assets', 'model')):
+    os.makedirs(os.path.join(config.root_path, 'assets', 'model'))
+    os.makedirs(os.path.join(config.root_path, 'assets', 'test_result'))
 
 # model load
 if args.loss_type != 'test':
@@ -53,12 +53,12 @@ if args.loss_type != 'test':
 else:
     item_dim = test_dataset.item_vector_dim
 sess_dim = 10
-model = FM(config.model, item_dim, sess_dim).to(device)
+model = FM(config.fm_model, item_dim, sess_dim).to(device)
 optimizer = optim.Adagrad(model.parameters(), lr=config.experiment['learning_rate'], weight_decay=config.experiment['weight_decay'])
 
 # Load model
-if os.path.isfile(os.path.join(config.root_path, 'model', ckpt_file_name % restore_epoch)):
-    checkpoint = torch.load(os.path.join(config.root_path, 'model', ckpt_file_name % restore_epoch))
+if os.path.isfile(os.path.join(config.root_path, 'assets', 'model', ckpt_file_name % restore_epoch)):
+    checkpoint = torch.load(os.path.join(config.root_path, 'assets', 'model', ckpt_file_name % restore_epoch))
     model.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     epoch = checkpoint['epoch']
@@ -74,7 +74,7 @@ if args.loss_type != 'test':
         model.train()
         train_loss_list = []
         for i, data in enumerate(train_dataloader):
-            keys, session_vectors, time_infos, labels, item_idx, item_vectors = data
+            keys, session_vectors, time_infos, labels, item_idx, item_vectors, _, _, _ = data
             session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
             session_vectors.requires_grad = True
             item_vectors.requires_grad = True
@@ -90,7 +90,6 @@ if args.loss_type != 'test':
             current_step += 1
 
         logger.info("training loss for %d epoch: %.4f" % (epoch + 1, np.mean(train_loss_list)))
-        # logger.info("training accuracy for %d epoch: %.4f" % (epoch + 1, (correct.item() / total)))
 
         # Validation
         with torch.no_grad():
@@ -98,7 +97,7 @@ if args.loss_type != 'test':
             validation_loss = 0
             n = 0
             for i, data in enumerate(valid_dataloader):
-                keys, session_vectors, time_infos, labels, item_idx, item_vectors = data
+                keys, session_vectors, time_infos, labels, item_idx, item_vectors, _, _, _ = data
                 session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
 
                 scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
@@ -110,15 +109,13 @@ if args.loss_type != 'test':
             validation_loss /= n
 
             logger.info("validation loss(%d): %.4f" % (epoch + 1, validation_loss))
-            # logger.info("validation accuracy(%d): %.4f" % (epoch + 1, (val_correct.item() / val_total)))
 
             # save model
             if (epoch + 1) % config.experiment['save_step'] == 0:
                 logger.info('saving model, Epoch %d, step %d' % (epoch + 1, current_step + 1))
-                model_save_path = os.path.join(config.root_path, 'model', ckpt_file_name % (epoch + 1))
+                model_save_path = os.path.join(config.root_path, 'assets', 'model', ckpt_file_name % (epoch + 1))
                 state_dict = {'model': model.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
                 torch.save(state_dict, model_save_path)
-# for test
 else:
     # Test
     df_out = dict()
@@ -128,7 +125,7 @@ else:
     with torch.no_grad():
         model.eval()
         for i, data in enumerate(test_dataloader):
-            keys, session_vectors, time_infos, labels, item_idx, item_vectors = data
+            keys, session_vectors, time_infos, labels, item_idx, item_vectors, _, _, _ = data
             session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
 
             scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
@@ -148,6 +145,6 @@ else:
                 df_out[column_names[4]].append(tmp_str[:-1])
 
     df_out = pd.DataFrame.from_dict(df_out)
-    df_out.to_csv(os.path.join(config.root_path, 'result', (ckpt_file_name % restore_epoch).replace('pth.tar','csv')), index=False)
+    df_out.to_csv(os.path.join(config.root_path, 'assets', 'test_result', (ckpt_file_name % restore_epoch).replace('pth.tar','csv')), index=False)
     logger.info("==== Test Finish")
 
