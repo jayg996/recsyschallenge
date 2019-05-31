@@ -147,7 +147,7 @@ class Preprocess():
                         session_time_dict[tmp_user, tmp_session] = tmp_list[2:4]
                         session_impressions_dict[tmp_user, tmp_session] = tmp_list[10].split('|')
 
-                        session_vectors_dict[tmp_user, tmp_session] = tmp_vectors_list
+                        session_vectors_dict[tmp_user, tmp_session] = np.array(tmp_vectors_list)
                         session_contexts_dict[tmp_user, tmp_session] = np.array(tmp_context_list)
                         impressions_price_dict[tmp_user, tmp_session] = np.array(tmp_list[11].split('|'), dtype=int)
         return session_vector_dict, session_time_dict, session_impressions_dict, session_label_dict, session_vectors_dict, session_contexts_dict, impressions_price_dict

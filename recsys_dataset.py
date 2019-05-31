@@ -62,7 +62,6 @@ def _collate_fn(batch):
     item_idx = list()
     item_vectors = np.zeros((batch_size, 25, batch[0]['item_vectors'].shape[1]))
 
-    # lengths = [len(batch[i]['session_vectors']) for i in range(batch_size)]
     lengths, sorted_idx = torch.tensor([len(batch[i]['session_vectors']) for i in range(batch_size)], dtype=torch.int64).sort(descending=True)
     max_len = lengths[0].item()
     session_vectors = np.zeros((batch_size, max_len, batch[0]['session_vectors'].shape[1]))
@@ -102,10 +101,12 @@ class RecSysDataLoader(DataLoader):
 if __name__ == "__main__":
     from hparams import HParams
     config = HParams.load("hparams.yaml")
+    print('train : ', config.mode['train'])
     dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'])
     print(len(dataset))
 
-    dataloader = RecSysDataLoader(dataset, batch_size=3, num_workers=1, shuffle=True, drop_last=False)
+    dataloader = RecSysDataLoader(dataset, batch_size=512, num_workers=1, shuffle=False, drop_last=False)
     for batch in dataloader:
         keys = batch[0]
-        break
+
+    print('end')

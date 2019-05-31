@@ -1,5 +1,5 @@
 mode:
-  train: True
+  train: False
   toy: False
 
 experiment:
