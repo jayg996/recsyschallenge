@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import torch
+from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
 from preprocess import Preprocess
@@ -45,30 +46,53 @@ class RecSysDataset(Dataset):
                 instance['item_vectors'][j, :] = np.array(self.item_vector_dict[int(instance['impressions'][j])])
             except:
                 ## todo : KeyError confirm
-                # print('KeyError : ',int(instance['impressions'][j]))
                 instance['item_vectors'][j, :] = np.zeros((self.item_vector_dim))
+
+        instance['session_vectors'] = self.data_infos[4][instance_key]
+        instance['context_vectors'] = self.data_infos[5][instance_key]
+        instance['prices'] = self.data_infos[6][instance_key]
         return instance
 
 def _collate_fn(batch):
     batch_size = len(batch)
     keys = list()
-    session_vectors = list()
+    session_vector = list()
     time_infos = list()
     labels = list()
     item_idx = list()
     item_vectors = np.zeros((batch_size, 25, batch[0]['item_vectors'].shape[1]))
 
-    for i in range(batch_size):
+    # lengths = [len(batch[i]['session_vectors']) for i in range(batch_size)]
+    lengths, sorted_idx = torch.tensor([len(batch[i]['session_vectors']) for i in range(batch_size)], dtype=torch.int64).sort(descending=True)
+    max_len = lengths[0].item()
+    session_vectors = np.zeros((batch_size, max_len, batch[0]['session_vectors'].shape[1]))
+    session_context_vectors = np.zeros((batch_size, max_len, batch[0]['session_vectors'].shape[1]+batch[0]['context_vectors'].shape[1]))
+    prices = np.zeros((batch_size, 25))
+
+    idx = 0
+    for i in sorted_idx:
         sample = batch[i]
         keys.append(sample['key'])
-        session_vectors.append(sample['session_vector'])
+        session_vector.append(sample['session_vector'])
         time_infos.append(sample['time_info'])
         labels.append(sample['label'])
         item_idx.append(sample['impressions'])
-        item_vectors[i, :, :] = sample['item_vectors']
-    session_vectors = torch.tensor(session_vectors, dtype=torch.float32)
+        item_vectors[idx, :, :] = sample['item_vectors']
+
+        session_vectors[idx, :lengths[idx], :] = sample['session_vectors']
+        session_context_vectors[idx, :lengths[idx], :session_vectors.shape[-1]] = sample['session_vectors']
+        session_context_vectors[idx, :lengths[idx], session_vectors.shape[-1]:] = sample['context_vectors']
+        prices[idx,:len(sample['prices'])] = sample['prices']
+        idx += 1
+
+    session_vector = torch.tensor(session_vector, dtype=torch.float32)
     item_vectors = torch.tensor(item_vectors, dtype=torch.float32)
-    return keys, session_vectors, time_infos, labels, item_idx, item_vectors
+
+    session_vectors = pack_padded_sequence(torch.tensor(session_vectors, dtype=torch.float32), lengths, batch_first=True)
+    session_context_vectors = pack_padded_sequence(torch.tensor(session_context_vectors, dtype=torch.float32), lengths, batch_first=True)
+    prices = torch.tensor(prices, dtype=torch.float32)
+
+    return keys, session_vector, time_infos, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices
 
 class RecSysDataLoader(DataLoader):
     def __init__(self, *args, **kwargs):
@@ -81,7 +105,7 @@ if __name__ == "__main__":
     dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'])
     print(len(dataset))
 
-    dataloader = RecSysDataLoader(dataset, batch_size=2, num_workers=1, shuffle=True, drop_last=False)
+    dataloader = RecSysDataLoader(dataset, batch_size=3, num_workers=1, shuffle=True, drop_last=False)
     for batch in dataloader:
         keys = batch[0]
         break
