@@ -3,6 +3,7 @@ import torch
 from torch import optim
 from src.data_loader.recsys_dataset import RecSysDataset, RecSysDataLoader
 from src.models.base_rnn import base_RNN
+from src.models.attention_rnn import attn_RNN
 from utils.hparams import HParams
 from utils.pytorch_utils import adjusting_learning_rate
 from utils import logger
@@ -19,6 +20,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 # hyper parameters
 parser = argparse.ArgumentParser()
 parser.add_argument('--index', type=int, help='Experiment Number', default='0')
+parser.add_argument('--model', type=str, help='base, attn', default='attn')
 parser.add_argument('--loss_type', type=str, help='top1, bpr, test', default='top1')
 parser.add_argument('--restore_epoch', type=int, default=1000)
 args = parser.parse_args()
@@ -42,6 +44,7 @@ if args.loss_type != 'test':
 else:
     test_dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'],valid_data=False)
     test_dataloader = RecSysDataLoader(dataset=test_dataset, batch_size=config.experiment['batch_size'],drop_last=False)
+logger.info("==== Data Loaded ")
 
 # result and model save paths
 restore_epoch = args.restore_epoch
@@ -57,8 +60,14 @@ if args.loss_type != 'test':
     item_dim = train_dataset.item_vector_dim
 else:
     item_dim = test_dataset.item_vector_dim
-sess_dim = 10
-model = base_RNN(config.rnn_model, item_dim, sess_dim).to(device)
+if args.model == 'base':
+    sess_dim = 10
+    model = base_RNN(config.rnn_model, item_dim, sess_dim).to(device)
+elif args.model == 'attn':
+    sess_dim = 170
+    model = attn_RNN(config.rnn_model, item_dim, sess_dim).to(device)
+else: raise NotImplementedError
+logger.info("==== Model Type : %s " % args.model)
 optimizer = optim.Adam(model.parameters(), lr=config.experiment['learning_rate'], weight_decay=config.experiment['weight_decay'])
 
 # Load model
@@ -81,13 +90,16 @@ if args.loss_type != 'test':
         train_loss_list = []
         for i, data in enumerate(train_dataloader):
             _, _, _, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices = data
-            session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
+            optimizer.zero_grad()
             session_vectors.requires_grad = True
             item_vectors.requires_grad = True
-
-            optimizer.zero_grad()
-
-            scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
+            if args.model == 'base':
+                session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
+                scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
+            elif args.model == 'attn':
+                session_context_vectors, item_vectors, prices = session_context_vectors.to(device), item_vectors.to(device), prices.to(device)
+                prices.requres_grad = True
+                scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, args.loss_type)
             train_loss_list.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -102,9 +114,12 @@ if args.loss_type != 'test':
             n = 0
             for i, data in enumerate(valid_dataloader):
                 _, _, _, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices = data
-                session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
-
-                scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
+                if args.model == 'base':
+                    session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
+                    scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
+                elif args.model == 'attn':
+                    session_context_vectors, item_vectors, prices = session_context_vectors.to(device), item_vectors.to(device), prices.to(device)
+                    scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, args.loss_type)
                 validation_loss += loss.item()
                 n += 1
 
@@ -133,9 +148,13 @@ else:
         for i, data in enumerate(test_dataloader):
             keys, _, time_infos, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices = data
 
-            session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
+            if args.model == 'base':
+                session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
+                scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
+            elif args.model == 'attn':
+                session_context_vectors, item_vectors, prices = session_context_vectors.to(device), item_vectors.to(device), prices.to(device)
+                scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, args.loss_type)
 
-            scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
             sorted, indices = torch.sort(scores, 1, descending=True)
             for k in range(len(keys)):
                 df_out[column_names[0]].append(keys[k][0])

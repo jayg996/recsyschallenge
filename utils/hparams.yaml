@@ -1,5 +1,5 @@
 mode:
-  train: True
+  train: False
   toy: False
 
 experiment:
@@ -8,12 +8,13 @@ experiment:
 #  weight_decay : 0.0
 #  max_epoch : 100
 #  batch_size : 256
+
   ## RNN
   learning_rate : 0.001
   weight_decay : 0.0
   max_epoch : 100
   batch_size : 256
-  save_step : 20
+  save_step : 10
   data_ratio : 0.8
 
 fm_model:
@@ -24,6 +25,8 @@ rnn_model:
   num_layers : 1
   embed_dim : 64
   hidden_dim : 32
+  price_dim : 4
+  drop_out : 0.2
 
 root_path : '/home/jayg996/recsyschallenge'
 
