@@ -3,7 +3,13 @@ mode:
   toy: False
 
 experiment:
-  learning_rate : 0.005
+  ## factorization machines
+#  learning_rate : 0.005
+#  weight_decay : 0.0
+#  max_epoch : 100
+#  batch_size : 256
+  ## RNN
+  learning_rate : 0.001
   weight_decay : 0.0
   max_epoch : 100
   batch_size : 256
@@ -12,6 +18,12 @@ experiment:
 
 fm_model:
   hidden_dim : 16
+
+rnn_model:
+  rnn_dim : 64
+  num_layers : 1
+  embed_dim : 64
+  hidden_dim : 32
 
 root_path : '/home/jayg996/recsyschallenge'
 
