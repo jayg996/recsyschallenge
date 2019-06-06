@@ -1,5 +1,5 @@
 mode:
-  train: False
+  train: True
   toy: False
 
 experiment:
@@ -26,6 +26,7 @@ rnn_model:
   embed_dim : 64
   hidden_dim : 32
   price_dim : 4
+  popular_dim : 8
   drop_out : 0.2
 
 root_path : '/home/jayg996/recsyschallenge'

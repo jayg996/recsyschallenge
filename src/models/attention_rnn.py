@@ -22,6 +22,7 @@ class attn_RNN(nn.Module):
         self.embed_dim = config['embed_dim']
         self.hidden_dim = config['hidden_dim']
         self.price_dim = config['price_dim']
+        self.popular_dim = config['popular_dim']
         self.num_layers = config['num_layers']
         self.drop_out = config['drop_out']
 
@@ -29,10 +30,11 @@ class attn_RNN(nn.Module):
 
         self.item_embedding = nn.Linear(self.item_dim, self.embed_dim)
         self.price_embedding = nn.Linear(1, self.price_dim)
-        self.linear = nn.Linear(self.embed_dim + self.price_dim + self.rnn_dim, self.hidden_dim)
+        self.popular_embedding = nn.Linear(1, self.popular_dim)
+        self.linear = nn.Linear(self.embed_dim + self.price_dim + self.popular_dim + self.rnn_dim, self.hidden_dim)
         self.scores = nn.Linear(self.hidden_dim, 1)
 
-        self.query_linear = nn.Linear(self.embed_dim + self.price_dim, self.embed_dim)
+        self.query_linear = nn.Linear(self.embed_dim + self.price_dim + self.popular_dim, self.embed_dim)
         self.key_linear = nn.Linear(self.rnn_dim, self.embed_dim)
         self.value_linear = nn.Linear(self.rnn_dim, self.embed_dim)
         self.context_linear = nn.Linear(self.embed_dim, self.embed_dim)
@@ -43,6 +45,7 @@ class attn_RNN(nn.Module):
         self.dropout = nn.Dropout(self.drop_out)
 
         self.layer_norm_price = LayerNorm(self.price_dim)
+        self.layer_norm_popular = LayerNorm(self.popular_dim)
         self.layer_norm_item = LayerNorm(self.embed_dim)
         self.layer_norm_sess = LayerNorm(self.rnn_dim)
         self.layer_norm_out = LayerNorm(self.embed_dim)
@@ -75,13 +78,14 @@ class attn_RNN(nn.Module):
         loss = torch.mean(subtracts + squares, 1)
         return loss
 
-    def forward(self, sess_context_vectors, item_vectors, labels, item_idx, prices, loss_type):
+    def forward(self, sess_context_vectors, item_vectors, labels, item_idx, prices, populars, loss_type):
         """
         :param sess_context_vectors: PackedSequnce, [sum of sequence lengths of batch, session and context dimension(170)]
         :param item_vectors: float tensor, [batch_size, impressions length(25), item_dim]
         :param labels: list, [batch_size]
         :param item_idx: lists contain item indexes of each session
         :param prices: float tensor, [batch_size, impressions length]
+        :param populars: float tensor, [batch_size, impressions length]
         :param loss_type: top1, bpr, test
         :return: item scores, loss
         """
@@ -93,16 +97,17 @@ class attn_RNN(nn.Module):
 
         out, lengths = pad_packed_sequence(packed_out, batch_first=True)
         out = self.layer_norm_sess(out)
-        # out = out.exapand()
 
         item_embed = self.item_embedding(item_vectors)
         item_embed = self.layer_norm_item(item_embed)
         price_embed = self.price_embedding(prices.unsqueeze(-1))
         price_embed = self.layer_norm_price(price_embed)
+        popular_embed = self.popular_embedding(populars.unsqueeze(-1))
+        popular_embed = self.layer_norm_popular(popular_embed)
 
-        item_price = torch.cat((item_embed, price_embed), dim=2)
+        item_price_popular = torch.cat((item_embed, price_embed, popular_embed), dim=2)
 
-        queries = self.query_linear(item_price)
+        queries = self.query_linear(item_price_popular)
         queries *= self.query_scale
 
         keys = self.key_linear(out)
@@ -115,7 +120,7 @@ class attn_RNN(nn.Module):
         outputs = self.context_linear(contexts)
         outputs = self.layer_norm_out(outputs)
 
-        item_sess = torch.cat((item_price, outputs), dim=2)
+        item_sess = torch.cat((item_price_popular, outputs), dim=2)
         item_sess = self.linear(item_sess)
         item_sess = F.leaky_relu(item_sess)
         scores = self.scores(item_sess).squeeze()

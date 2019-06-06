@@ -89,7 +89,7 @@ if args.loss_type != 'test':
         model.train()
         train_loss_list = []
         for i, data in enumerate(train_dataloader):
-            _, _, _, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices = data
+            _, _, _, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices, populars = data
             optimizer.zero_grad()
             session_vectors.requires_grad = True
             item_vectors.requires_grad = True
@@ -97,9 +97,10 @@ if args.loss_type != 'test':
                 session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
                 scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
             elif args.model == 'attn':
-                session_context_vectors, item_vectors, prices = session_context_vectors.to(device), item_vectors.to(device), prices.to(device)
-                prices.requres_grad = True
-                scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, args.loss_type)
+                session_context_vectors, item_vectors, prices, populars = session_context_vectors.to(device), item_vectors.to(device), prices.to(device), populars.to(device)
+                prices.requires_grad = True
+                populars.requires_grad = True
+                scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, populars, args.loss_type)
             train_loss_list.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -113,13 +114,13 @@ if args.loss_type != 'test':
             validation_loss = 0
             n = 0
             for i, data in enumerate(valid_dataloader):
-                _, _, _, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices = data
+                _, _, _, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices, populars = data
                 if args.model == 'base':
                     session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
                     scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
                 elif args.model == 'attn':
-                    session_context_vectors, item_vectors, prices = session_context_vectors.to(device), item_vectors.to(device), prices.to(device)
-                    scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, args.loss_type)
+                    session_context_vectors, item_vectors, prices, populars = session_context_vectors.to(device), item_vectors.to(device), prices.to(device), populars.to(device)
+                    scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, populars, args.loss_type)
                 validation_loss += loss.item()
                 n += 1
 
@@ -146,14 +147,14 @@ else:
     with torch.no_grad():
         model.eval()
         for i, data in enumerate(test_dataloader):
-            keys, _, time_infos, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices = data
+            keys, _, time_infos, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices, populars = data
 
             if args.model == 'base':
                 session_vectors, item_vectors = session_vectors.to(device), item_vectors.to(device)
                 scores, loss = model(session_vectors, item_vectors, labels, item_idx, args.loss_type)
             elif args.model == 'attn':
-                session_context_vectors, item_vectors, prices = session_context_vectors.to(device), item_vectors.to(device), prices.to(device)
-                scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, args.loss_type)
+                session_context_vectors, item_vectors, prices, populars = session_context_vectors.to(device), item_vectors.to(device), prices.to(device), populars.to(device)
+                scores, loss = model(session_context_vectors, item_vectors, labels, item_idx, prices, populars, args.loss_type)
 
             sorted, indices = torch.sort(scores, 1, descending=True)
             for k in range(len(keys)):

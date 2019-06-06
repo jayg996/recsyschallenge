@@ -39,6 +39,17 @@ class Preprocess():
             meta['item_vector'] = self.item_vector_dict
             torch.save(meta,meta_path)
 
+        popular_path = os.path.join(self.config.root_path, 'data', 'popular.pt')
+        if os.path.exists(popular_path):
+            self.item_popular_dict = torch.load(popular_path)
+        else:
+            data_df = pd.read_csv(os.path.join(self.config.root_path, 'data', data_name + '.csv'))
+            mask = data_df["action_type"] == "clickout item"
+            df_clicks = data_df[mask]
+            df_item_clicks = (df_clicks.groupby("reference").size().reset_index(name="n_clicks").transform(lambda x: x.astype(int)))
+            self.item_popular_dict = df_item_clicks.set_index('reference').to_dict()['n_clicks']
+            torch.save(self.item_popular_dict, popular_path)
+
         preprocess_save_path = os.path.join(self.config.root_path, 'data', data_name + '.pt')
         if os.path.exists(preprocess_save_path):
             self.data_infos = torch.load(preprocess_save_path)

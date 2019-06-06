@@ -14,6 +14,7 @@ class RecSysDataset(Dataset):
         self.preprocessor = Preprocess(self.config, train_mode, toy_mode)
         self.item_vector_dim = len(self.preprocessor.meta_idx)
         self.item_vector_dict = self.preprocessor.item_vector_dict
+        self.item_popular_dict = self.preprocessor.item_popular_dict
         self.data_infos = self.preprocessor.data_infos
         self.session_keys = SortedList(self.data_infos[0].keys())
         if train_mode:
@@ -38,12 +39,17 @@ class RecSysDataset(Dataset):
             instance['label'] = -1
         instance['impressions'] = self.data_infos[2][instance_key]
         instance['item_vectors'] = np.zeros((25, self.item_vector_dim))
+        instance['populars'] = np.zeros(25)
         for j in range(len(instance['impressions'])):
             try:
                 instance['item_vectors'][j, :] = np.array(self.item_vector_dict[int(instance['impressions'][j])])
             except:
                 ## todo : KeyError confirm
                 instance['item_vectors'][j, :] = np.zeros((self.item_vector_dim))
+            try:
+                instance['populars'][j] = float(self.item_popular_dict[int(instance['impressions'][j])])
+            except:
+                instance['populars'][j] = 0
 
         instance['session_vectors'] = self.data_infos[4][instance_key]
         instance['context_vectors'] = self.data_infos[5][instance_key]
@@ -64,6 +70,7 @@ def _collate_fn(batch):
     session_vectors = np.zeros((batch_size, max_len, batch[0]['session_vectors'].shape[1]))
     session_context_vectors = np.zeros((batch_size, max_len, batch[0]['session_vectors'].shape[1]+batch[0]['context_vectors'].shape[1]))
     prices = np.zeros((batch_size, 25))
+    populars = np.zeros((batch_size, 25))
 
     idx = 0
     for i in sorted_idx:
@@ -79,6 +86,7 @@ def _collate_fn(batch):
         session_context_vectors[idx, :lengths[idx], :session_vectors.shape[-1]] = sample['session_vectors']
         session_context_vectors[idx, :lengths[idx], session_vectors.shape[-1]:] = sample['context_vectors']
         prices[idx,:len(sample['prices'])] = sample['prices']
+        populars[idx,:len(sample['populars'])] = sample['populars']
         idx += 1
 
     session_vector = torch.tensor(session_vector, dtype=torch.float32)
@@ -87,8 +95,9 @@ def _collate_fn(batch):
     session_vectors = pack_padded_sequence(torch.tensor(session_vectors, dtype=torch.float32), lengths, batch_first=True)
     session_context_vectors = pack_padded_sequence(torch.tensor(session_context_vectors, dtype=torch.float32), lengths, batch_first=True)
     prices = torch.tensor(prices, dtype=torch.float32)
+    populars = torch.tensor(populars, dtype=torch.float32)
 
-    return keys, session_vector, time_infos, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices
+    return keys, session_vector, time_infos, labels, item_idx, item_vectors, session_vectors, session_context_vectors, prices, populars
 
 class RecSysDataLoader(DataLoader):
     def __init__(self, *args, **kwargs):
@@ -97,7 +106,7 @@ class RecSysDataLoader(DataLoader):
 
 if __name__ == "__main__":
     from utils.hparams import HParams
-    config = HParams.load("utils/hparams.yaml")
+    config = HParams.load("../../utils/hparams.yaml")
     print('train : ', config.mode['train'])
     dataset = RecSysDataset(config, train_mode=config.mode['train'], toy_mode=config.mode['toy'])
     print(len(dataset))
