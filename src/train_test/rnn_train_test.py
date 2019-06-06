@@ -51,9 +51,9 @@ restore_epoch = args.restore_epoch
 experiment_num = str(args.index)
 ckpt_file_name = 'idx_'+experiment_num+'_%03d.pth.tar'
 logger.info("==== Experiment Number : %d " % args.index)
-if not os.path.exists(os.path.join(config.root_path, 'assets', 'model')):
-    os.makedirs(os.path.join(config.root_path, 'assets', 'model'))
-    os.makedirs(os.path.join(config.root_path, 'assets', 'test_result'))
+if not os.path.exists(os.path.join(config.asset_path, 'assets', 'model')):
+    os.makedirs(os.path.join(config.asset_path, 'assets', 'model'))
+    os.makedirs(os.path.join(config.asset_path, 'assets', 'test_result'))
 
 # model load
 if args.loss_type != 'test':
@@ -71,8 +71,8 @@ logger.info("==== Model Type : %s " % args.model)
 optimizer = optim.Adam(model.parameters(), lr=config.experiment['learning_rate'], weight_decay=config.experiment['weight_decay'])
 
 # Load model
-if os.path.isfile(os.path.join(config.root_path, 'assets', 'model', ckpt_file_name % restore_epoch)):
-    checkpoint = torch.load(os.path.join(config.root_path, 'assets', 'model', ckpt_file_name % restore_epoch))
+if os.path.isfile(os.path.join(config.asset_path, 'assets', 'model', ckpt_file_name % restore_epoch)):
+    checkpoint = torch.load(os.path.join(config.asset_path, 'assets', 'model', ckpt_file_name % restore_epoch))
     model.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     epoch = checkpoint['epoch']
@@ -130,7 +130,7 @@ if args.loss_type != 'test':
             # save model
             if (epoch + 1) % config.experiment['save_step'] == 0:
                 logger.info('saving model, Epoch %d, step %d' % (epoch + 1, current_step + 1))
-                model_save_path = os.path.join(config.root_path, 'assets', 'model', ckpt_file_name % (epoch + 1))
+                model_save_path = os.path.join(config.asset_path, 'assets', 'model', ckpt_file_name % (epoch + 1))
                 state_dict = {'model': model.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
                 torch.save(state_dict, model_save_path)
 
@@ -172,6 +172,6 @@ else:
                 df_out[column_names[4]].append(tmp_str[:-1])
 
     df_out = pd.DataFrame.from_dict(df_out)
-    df_out.to_csv(os.path.join(config.root_path, 'assets', 'test_result', (ckpt_file_name % restore_epoch).replace('pth.tar','csv')), index=False)
+    df_out.to_csv(os.path.join(config.asset_path, 'assets', 'test_result', (ckpt_file_name % restore_epoch).replace('pth.tar','csv')), index=False)
     logger.info("==== Test Finish")
 

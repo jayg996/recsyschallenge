@@ -30,4 +30,5 @@ rnn_model:
   drop_out : 0.2
 
 root_path : '/home/jayg996/recsyschallenge'
+asset_path : '/home/jayg996/recsyschallenge'
 
