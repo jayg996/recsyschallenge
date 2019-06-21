@@ -1,4 +1,4 @@
-# RecSys Challenge 2019 : recomendation system based RNN with attention 
+# RecSys Challenge 2019 : Recommendation System based RNN with Attention 
 
 This repository has models and preprocessing codes to participate in the [RecSys Challenge 2019](http://www.recsyschallenge.com/2019/).
 
